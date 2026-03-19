@@ -11,4 +11,5 @@ PATH=/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin
 # Find it with: conda run -n paper-reader which paper-reader
 PAPER_READER=/opt/homebrew/Caskroom/miniconda/base/envs/paper-reader/bin/paper-reader
 
-0 5 * * * cd ~/projects/scratchpad/paper_reader && ANTHROPIC_API_KEY="REPLACE_ME" $PAPER_READER run --top 3 >> logs/cron.log 2>&1
+# Run daily at 5am: fetch papers, generate reports, commit to git
+0 5 * * * cd ~/projects/scratchpad/paper_reader && ANTHROPIC_API_KEY="REPLACE_ME" $PAPER_READER run --top 3 >> logs/cron.log 2>&1 && cd ~/projects/scratchpad && git add paper_reader/reports/ && git diff --cached --quiet || git commit -m "Daily papers $(date +\%Y-\%m-\%d)" && git push >> ~/projects/scratchpad/paper_reader/logs/cron.log 2>&1

@@ -1,3 +1,5 @@
+# After creating the conda env, also install:
+#   brew install --cask libreoffice   # needed for DOCX → PDF conversion
 name: paper-reader
 channels:
   - conda-forge
