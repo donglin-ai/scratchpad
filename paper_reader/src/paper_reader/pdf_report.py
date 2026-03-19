@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 import tempfile
-from io import BytesIO
 from pathlib import Path
 
 from fpdf import FPDF
@@ -15,12 +14,80 @@ from paper_reader.reporting import Discovery, _slugify
 _FIGURE_CAPTION_RE = re.compile(r"Figure\s+(\d+)\s*[:\.]", re.IGNORECASE)
 
 
-def _latin(text: str) -> str:
-    """Make text safe for fpdf2 built-in fonts (latin-1 only)."""
-    return text.encode("latin-1", errors="replace").decode("latin-1")
+def _get_dejavu_fonts() -> dict[str, str]:
+    """Return paths to DejaVu Sans fonts bundled with matplotlib."""
+    try:
+        import matplotlib
+        font_dir = Path(matplotlib.get_data_path()) / "fonts" / "ttf"
+        return {
+            "regular": str(font_dir / "DejaVuSans.ttf"),
+            "bold": str(font_dir / "DejaVuSans-Bold.ttf"),
+            "italic": str(font_dir / "DejaVuSans-Oblique.ttf"),
+            "mono": str(font_dir / "DejaVuSansMono.ttf"),
+        }
+    except Exception:
+        return {}
+
+
+def _make_pdf() -> FPDF:
+    """Create an FPDF instance with Unicode font support."""
+    pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=12)
+
+    fonts = _get_dejavu_fonts()
+    if fonts:
+        pdf.add_font("DejaVu", "", fonts["regular"])
+        pdf.add_font("DejaVu", "B", fonts["bold"])
+        pdf.add_font("DejaVu", "I", fonts["italic"])
+        pdf.add_font("Mono", "", fonts["mono"])
+        pdf.set_font("DejaVu", "", 10)
+    else:
+        pdf.set_font("Helvetica", "", 10)
+
+    return pdf
+
+
+def _font(pdf: FPDF, style: str = "", size: int = 10) -> None:
+    """Set font — use DejaVu if available, else Helvetica."""
+    try:
+        pdf.set_font("DejaVu", style, size)
+    except Exception:
+        pdf.set_font("Helvetica", style, size)
+
+
+def _mono_font(pdf: FPDF, size: int = 8) -> None:
+    try:
+        pdf.set_font("Mono", "", size)
+    except Exception:
+        pdf.set_font("Courier", "", size)
 
 
 # ── Figure extraction ────────────────────────────────────────────────────────
+
+def _find_caption_end(page, fig_num: int) -> float | None:
+    """Find the bottom y-coordinate of the full caption text for a figure."""
+    import fitz
+
+    blocks = page.get_text("blocks")  # (x0, y0, x1, y1, text, block_no, block_type)
+    caption_start_y = None
+    caption_end_y = None
+
+    for b in sorted(blocks, key=lambda x: x[1]):
+        text = b[4] if len(b) > 4 else ""
+        if caption_start_y is None:
+            # Look for the block containing "Figure N"
+            if re.search(rf"Figure\s+{fig_num}\b", text, re.IGNORECASE):
+                caption_start_y = b[1]
+                caption_end_y = b[3]
+        elif caption_start_y is not None:
+            # Caption may span multiple blocks if it wraps — include if close
+            if b[1] - caption_end_y < 5:  # continuation of caption
+                caption_end_y = b[3]
+            else:
+                break
+
+    return caption_end_y
+
 
 def _extract_figure_cropped(pdf_bytes: bytes, figures: list[dict]) -> dict[str, str]:
     """Extract cropped figure images from PDF. Returns {figure_id: temp_png_path}."""
@@ -67,30 +134,27 @@ def _extract_figure_cropped(pdf_bytes: bytes, figures: list[dict]) -> dict[str, 
             continue
 
         page = doc[page_num]
-
-        # Find caption text position for cropping
         fig_num_match = re.search(r"(\d+)", fig_id)
-        caption_pattern = f"Figure {fig_num_match.group(1)}" if fig_num_match else fig_id
-        instances = page.search_for(caption_pattern)
+        fig_num = int(fig_num_match.group(1)) if fig_num_match else 0
 
-        if instances:
-            caption_y = instances[0].y1
+        # Find full caption extent (including wrapped lines)
+        caption_bottom = _find_caption_end(page, fig_num)
+
+        if caption_bottom is not None:
             # Find content above caption: images and drawings
-            min_y = caption_y  # start at caption, scan upward
+            min_y = caption_bottom
             for img_info in page.get_image_info():
                 bbox = img_info["bbox"]
-                if bbox[3] <= caption_y + 5:  # image above or at caption
+                if bbox[3] <= caption_bottom + 5:
                     min_y = min(min_y, bbox[1])
             for d in page.get_drawings():
-                if d["rect"].y1 <= caption_y + 5:
+                if d["rect"].y1 <= caption_bottom + 5:
                     min_y = min(min_y, d["rect"].y0)
 
-            # Add small margins
             clip_y0 = max(0, min_y - 10)
-            clip_y1 = min(page.rect.height, caption_y + 25)
+            clip_y1 = min(page.rect.height, caption_bottom + 5)
             clip = fitz.Rect(0, clip_y0, page.rect.width, clip_y1)
         else:
-            # No caption found — render full page
             clip = page.rect
 
         try:
@@ -139,18 +203,17 @@ def write_paper_pdf(details_dir: Path, discovery: Discovery) -> Path:
         title_slug = title_slug[:80].rstrip("-")
     pdf_path = details_dir / f"{title_slug}.pdf"
 
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=12)
+    pdf = _make_pdf()
     pdf.add_page()
 
-    # Extract figures and formulas
+    # Extract figures
     figure_images = _extract_figure_cropped(
         discovery.metadata.pdf_bytes, discovery.analysis.key_figures,
     )
 
     # ── Title ────────────────────────────────────────────────────────────
-    pdf.set_font("Helvetica", "B", 13)
-    pdf.multi_cell(0, 5, _latin(discovery.metadata.title), new_x="LMARGIN", new_y="NEXT")
+    _font(pdf, "B", 13)
+    pdf.multi_cell(0, 5, discovery.metadata.title, new_x="LMARGIN", new_y="NEXT")
 
     # Authors + link
     meta_parts = []
@@ -162,41 +225,41 @@ def write_paper_pdf(details_dir: Path, discovery: Discovery) -> Path:
     if discovery.metadata.venue:
         meta_parts.append(discovery.metadata.venue)
     if meta_parts:
-        pdf.set_font("Helvetica", "", 7)
+        _font(pdf, "", 7)
         pdf.set_text_color(100, 100, 100)
-        pdf.cell(0, 4, _latin(" | ".join(meta_parts)), new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 4, " | ".join(meta_parts), new_x="LMARGIN", new_y="NEXT")
 
     url = discovery.metadata.canonical_url or discovery.paper.canonical_url
     if url:
         pdf.set_text_color(5, 99, 193)
-        pdf.set_font("Helvetica", "", 7)
+        _font(pdf, "", 7)
         pdf.cell(0, 4, url, new_x="LMARGIN", new_y="NEXT", link=url)
     pdf.ln(3)
 
     # ── Research Questions ───────────────────────────────────────────────
     pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Helvetica", "B", 10)
+    _font(pdf, "B", 10)
     pdf.cell(0, 5, "Research Questions", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("Helvetica", "", 9)
+    _font(pdf, "", 9)
     for q in discovery.analysis.research_questions:
         pdf.cell(3)
-        pdf.multi_cell(0, 4, _latin(f"- {q}"), new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 4, f"\u2022 {q}", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(2)
 
     # ── Core Idea ────────────────────────────────────────────────────────
     if discovery.analysis.intuitive_explanation:
-        pdf.set_font("Helvetica", "B", 10)
+        _font(pdf, "B", 10)
         pdf.cell(0, 5, "Core Idea", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("Helvetica", "", 9)
+        _font(pdf, "", 9)
         paras = [p.strip() for p in discovery.analysis.intuitive_explanation.split("\n\n") if p.strip()]
         for para in paras[:2]:
-            pdf.multi_cell(0, 4, _latin(para), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 4, para, new_x="LMARGIN", new_y="NEXT")
             pdf.ln(1)
         pdf.ln(1)
 
     # ── Key Formula ──────────────────────────────────────────────────────
     if discovery.analysis.key_formulas:
-        pdf.set_font("Helvetica", "B", 10)
+        _font(pdf, "B", 10)
         pdf.cell(0, 5, "Key Formula", new_x="LMARGIN", new_y="NEXT")
 
         for formula in discovery.analysis.key_formulas[:2]:
@@ -205,8 +268,8 @@ def write_paper_pdf(details_dir: Path, discovery: Discovery) -> Path:
             explanation = formula.get("explanation", "")
 
             if name:
-                pdf.set_font("Helvetica", "B", 9)
-                pdf.cell(0, 4, _latin(name), new_x="LMARGIN", new_y="NEXT")
+                _font(pdf, "B", 9)
+                pdf.cell(0, 4, name, new_x="LMARGIN", new_y="NEXT")
 
             if latex:
                 img_path = _render_latex(latex)
@@ -215,16 +278,15 @@ def write_paper_pdf(details_dir: Path, discovery: Discovery) -> Path:
                         pdf.image(img_path, x=pdf.l_margin + 10, w=min(140, pdf.epw - 20))
                         pdf.ln(2)
                     except Exception:
-                        # Fallback: show raw LaTeX
-                        pdf.set_font("Courier", "", 8)
-                        pdf.multi_cell(0, 4, _latin(latex), new_x="LMARGIN", new_y="NEXT")
+                        _mono_font(pdf, 8)
+                        pdf.multi_cell(0, 4, latex, new_x="LMARGIN", new_y="NEXT")
                 else:
-                    pdf.set_font("Courier", "", 8)
-                    pdf.multi_cell(0, 4, _latin(latex), new_x="LMARGIN", new_y="NEXT")
+                    _mono_font(pdf, 8)
+                    pdf.multi_cell(0, 4, latex, new_x="LMARGIN", new_y="NEXT")
 
             if explanation:
-                pdf.set_font("Helvetica", "", 8)
-                pdf.multi_cell(0, 3.5, _latin(explanation), new_x="LMARGIN", new_y="NEXT")
+                _font(pdf, "", 8)
+                pdf.multi_cell(0, 3.5, explanation, new_x="LMARGIN", new_y="NEXT")
             pdf.ln(2)
 
     # ── Key Figure ───────────────────────────────────────────────────────
@@ -234,12 +296,11 @@ def write_paper_pdf(details_dir: Path, discovery: Discovery) -> Path:
         significance = fig.get("significance", "")
         img_path = figure_images.get(fig_id)
 
-        pdf.set_font("Helvetica", "B", 10)
+        _font(pdf, "B", 10)
         pdf.cell(0, 5, "Key Figure", new_x="LMARGIN", new_y="NEXT")
 
         if img_path:
             try:
-                # Fit to page width with margin
                 max_w = pdf.epw - 10
                 pdf.image(img_path, x=pdf.l_margin + 5, w=max_w)
                 pdf.ln(2)
@@ -247,20 +308,20 @@ def write_paper_pdf(details_dir: Path, discovery: Discovery) -> Path:
                 pass
 
         if significance:
-            pdf.set_font("Helvetica", "I", 8)
+            _font(pdf, "I", 8)
             pdf.set_text_color(60, 60, 60)
-            pdf.multi_cell(0, 3.5, _latin(f"{fig_id}: {significance}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 3.5, f"{fig_id}: {significance}", new_x="LMARGIN", new_y="NEXT")
             pdf.set_text_color(0, 0, 0)
         pdf.ln(2)
 
     # ── Limitations ──────────────────────────────────────────────────────
     if discovery.analysis.solution_limitations:
-        pdf.set_font("Helvetica", "B", 10)
+        _font(pdf, "B", 10)
         pdf.cell(0, 5, "Limitations", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("Helvetica", "", 8)
+        _font(pdf, "", 8)
         for item in discovery.analysis.solution_limitations[:4]:
             pdf.cell(3)
-            pdf.multi_cell(0, 3.5, _latin(f"- {item}"), new_x="LMARGIN", new_y="NEXT")
+            pdf.multi_cell(0, 3.5, f"\u2022 {item}", new_x="LMARGIN", new_y="NEXT")
 
     pdf.output(str(pdf_path))
 
