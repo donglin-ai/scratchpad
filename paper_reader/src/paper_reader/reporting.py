@@ -24,6 +24,11 @@ class Discovery:
 SLUG_PATTERN = re.compile(r"[^a-zA-Z0-9]+")
 
 
+def _latin_safe(text: str) -> str:
+    """Replace non-latin-1 characters so fpdf2 default fonts don't choke."""
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
+
 def _slugify(text: str) -> str:
     slug = SLUG_PATTERN.sub("-", text).strip("-").lower()
     return slug or "paper"
@@ -63,7 +68,7 @@ def write_daily_summary_pdf(
 
             # Paper title
             pdf.set_font("Helvetica", "B", 11)
-            title = f"{i}. {item.metadata.title}"
+            title = _latin_safe(f"{i}. {item.metadata.title}")
             pdf.multi_cell(0, 5, title, new_x="LMARGIN", new_y="NEXT")
 
             # Authors + link
@@ -72,7 +77,7 @@ def write_daily_summary_pdf(
             authors = ", ".join(item.metadata.authors[:4])
             if len(item.metadata.authors) > 4:
                 authors += " et al."
-            meta_line = f"{authors}  |  Score: {item.ranking.score}"
+            meta_line = _latin_safe(f"{authors}  |  Score: {item.ranking.score}")
             pdf.cell(0, 4, meta_line, new_x="LMARGIN", new_y="NEXT")
 
             url = item.metadata.canonical_url or item.paper.canonical_url
@@ -83,7 +88,7 @@ def write_daily_summary_pdf(
             # Summary
             pdf.set_text_color(0, 0, 0)
             pdf.set_font("Helvetica", "", 9)
-            summary = item.analysis.summary or "No summary available."
+            summary = _latin_safe(item.analysis.summary or "No summary available.")
             pdf.ln(1)
             pdf.multi_cell(0, 4, summary, new_x="LMARGIN", new_y="NEXT")
 
@@ -91,7 +96,7 @@ def write_daily_summary_pdf(
             if item.ranking.reasons:
                 pdf.set_font("Helvetica", "I", 7)
                 pdf.set_text_color(100, 100, 100)
-                pdf.cell(0, 4, f"Why: {', '.join(item.ranking.reasons[:3])}", new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(0, 4, _latin_safe(f"Why: {', '.join(item.ranking.reasons[:3])}"), new_x="LMARGIN", new_y="NEXT")
 
             pdf.ln(4)
 
