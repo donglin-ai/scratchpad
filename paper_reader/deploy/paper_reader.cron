@@ -12,4 +12,4 @@ PATH=/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin
 PAPER_READER=/opt/homebrew/Caskroom/miniconda/base/envs/paper-reader/bin/paper-reader
 
 # Run daily at 5am: fetch papers, generate reports, commit today's output to git
-0 5 * * * cd ~/projects/scratchpad/paper_reader && ANTHROPIC_API_KEY="REPLACE_ME" $PAPER_READER run --top 3 >> logs/cron.log 2>&1; TODAY=$(date +\%Y-\%m-\%d); cd ~/projects/scratchpad && git add "paper_reader/reports/papers/$TODAY/" "paper_reader/reports/$TODAY.pdf" 2>/dev/null; git diff --cached --quiet || (git commit -m "Daily papers $TODAY" && git push) >> ~/projects/scratchpad/paper_reader/logs/cron.log 2>&1
+0 5 * * * cd ~/projects/scratchpad/paper_reader && ANTHROPIC_API_KEY="REPLACE_ME" $PAPER_READER run --top 3 >> logs/cron.log 2>&1; TODAY=$(date +\%Y-\%m-\%d); cd ~/projects/scratchpad && git add "paper_reader/reports/papers/$TODAY/*.pdf" 2>/dev/null; git diff --cached --quiet || (git commit -m "Daily papers $TODAY" && git push) >> ~/projects/scratchpad/paper_reader/logs/cron.log 2>&1
