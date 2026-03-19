@@ -16,7 +16,6 @@ dependencies = [
   "mathml2omml>=0.0.2",
   "lxml>=4.9.0",
   "fpdf2>=2.7.0",
-  "docx2pdf>=0.1.0",
 ]
 
 [project.scripts]
