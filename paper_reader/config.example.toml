@@ -1,0 +1,71 @@
+arxiv_api_url = "https://export.arxiv.org/api/query"
+database_path = "data/paper_reader.sqlite3"
+reports_dir = "reports"
+paper_details_dir = "reports/papers"
+max_results = 25
+lookback_hours = 24
+topic_keywords = [
+  "multimodal foundation model",
+  "world model",
+  "physical ai",
+  "time series model",
+]
+arxiv_categories = [
+  "cs.AI",
+  "cs.CV",
+  "cs.LG",
+  "cs.RO",
+  "eess.SP",
+]
+top_labs = [
+  "OpenAI",
+  "Google DeepMind",
+  "Anthropic",
+  "Meta AI",
+  "NVIDIA",
+  "Microsoft Research",
+  "Stanford",
+  "Berkeley",
+  "MIT",
+  "CMU",
+]
+prominent_people = [
+  "Yann LeCun",
+  "Andrej Karpathy",
+  "Fei-Fei Li",
+  "Geoffrey Hinton",
+  "Demis Hassabis",
+  "Noam Brown",
+  "Sergey Levine",
+  "Jitendra Malik",
+]
+top_conferences = [
+  "NeurIPS",
+  "ICML",
+  "ICLR",
+  "CVPR",
+  "ECCV",
+  "ICCV",
+  "ACL",
+  "EMNLP",
+  "CoRL",
+  "RSS",
+]
+focus_terms = [
+  "multimodal",
+  "foundation model",
+  "world model",
+  "physical ai",
+  "robotics",
+  "time series",
+  "video model",
+  "vision-language",
+]
+analysis_enabled = true
+analysis_model = "claude-sonnet-4-20250514"
+anthropic_api_key_env = "ANTHROPIC_API_KEY"
+anthropic_base_url = "https://api.anthropic.com/v1"
+anthropic_version = "2023-06-01"
+analysis_max_input_chars = 16000
+pdf_max_pages = 8
+pdf_text_char_limit = 24000

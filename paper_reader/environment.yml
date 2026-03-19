@@ -1,0 +1,14 @@
+name: paper-reader
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pip
+  - pip:
+      - "pypdf[image]>=5.0.0"
+      - pymupdf>=1.24.0
+      - python-docx>=1.0.0
+      - latex2mathml>=3.0.0
+      - mathml2omml>=0.0.2
+      - lxml>=4.9.0
+      - -e .

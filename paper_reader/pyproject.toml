@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paper-reader"
+version = "0.1.0"
+description = "Daily X crawler for newly shared research papers."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "pypdf[image]>=5.0.0",
+  "pymupdf>=1.24.0",
+  "python-docx>=1.0.0",
+  "latex2mathml>=3.0.0",
+  "mathml2omml>=0.0.2",
+  "lxml>=4.9.0",
+]
+
+[project.scripts]
+paper-reader = "paper_reader.main:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,107 @@
+arxiv_api_url = "https://export.arxiv.org/api/query"
+database_path = "data/paper_reader.sqlite3"
+reports_dir = "reports"
+paper_details_dir = "reports/papers"
+max_results = 50
+lookback_hours = 48
+topic_keywords = [
+  "world model",
+  "video world model",
+  "multimodal foundation model",
+  "vision language action",
+  "physical ai",
+  "embodied foundation model",
+  "video generation model",
+  "video prediction model",
+  "transformer architecture",
+  "attention mechanism",
+  "efficient inference",
+  "foundation model scaling",
+]
+arxiv_categories = [
+  "cs.AI",
+  "cs.CV",
+  "cs.LG",
+  "cs.RO",
+]
+top_labs = [
+  "OpenAI",
+  "Google DeepMind",
+  "Anthropic",
+  "Meta AI",
+  "Meta FAIR",
+  "NVIDIA",
+  "Microsoft Research",
+  "Apple",
+  "ByteDance",
+  "Tencent",
+  "Alibaba",
+  "Baidu",
+  "Stanford",
+  "Berkeley",
+  "MIT",
+  "CMU",
+  "Princeton",
+  "Tsinghua",
+  "Peking University",
+  "Shanghai AI Lab",
+  "MMLab",
+  "GigaAI",
+]
+prominent_people = [
+  "Yann LeCun",
+  "Fei-Fei Li",
+  "Sergey Levine",
+  "Jitendra Malik",
+  "Pieter Abbeel",
+  "Phillip Isola",
+  "Saining Xie",
+  "Kaiming He",
+  "Song Han",
+  "Deva Ramanan",
+  "Abhinav Gupta",
+  "Chelsea Finn",
+  "Shuran Song",
+  "Yuke Zhu",
+  "Tim Brooks",
+  "Jim Fan",
+  "Linxi Fan",
+]
+top_conferences = [
+  "NeurIPS",
+  "ICML",
+  "ICLR",
+  "CVPR",
+  "ECCV",
+  "ICCV",
+  "CoRL",
+  "RSS",
+  "IROS",
+  "ICRA",
+  "SIGGRAPH",
+]
+focus_terms = [
+  "world model",
+  "multimodal",
+  "foundation model",
+  "video generation",
+  "video prediction",
+  "vision-language",
+  "vision language action",
+  "physical ai",
+  "embodied",
+  "robotics",
+  "3d generation",
+  "diffusion",
+  "spatial intelligence",
+  "4d",
+  "simulator",
+]
+analysis_enabled = true
+analysis_model = "claude-sonnet-4-20250514"
+anthropic_api_key_env = "ANTHROPIC_API_KEY"
+anthropic_base_url = "https://api.anthropic.com/v1"
+anthropic_version = "2023-06-01"
+analysis_max_input_chars = 16000
+pdf_max_pages = 12
+pdf_text_char_limit = 24000

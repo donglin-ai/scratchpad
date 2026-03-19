@@ -1,0 +1,14 @@
+SHELL=/bin/zsh
+PATH=/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin
+
+# Review before installing. This file is not active until:
+#   crontab deploy/paper_reader.cron
+#
+# Optional environment variables:
+#   ANTHROPIC_API_KEY=...
+
+# Set PAPER_READER to the full path of the paper-reader binary in your conda env.
+# Find it with: conda run -n paper-reader which paper-reader
+PAPER_READER=/opt/homebrew/Caskroom/miniconda/base/envs/paper-reader/bin/paper-reader
+
+0 5 * * * cd ~/projects/scratchpad/paper_reader && ANTHROPIC_API_KEY="REPLACE_ME" $PAPER_READER run --top 3 >> logs/cron.log 2>&1
