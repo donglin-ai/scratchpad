@@ -75,10 +75,65 @@ _JSON_FENCE_PATTERN = re.compile(r"^```(?:json)?\s*\n?", re.MULTILINE)
 _FENCE_END_PATTERN = re.compile(r"\n?```\s*$")
 
 
+def _truncate_pdf(pdf_bytes: bytes, max_pages: int = 20, max_bytes: int = 20_000_000) -> bytes:
+    """Truncate a PDF to fit within the Claude API limits.
+
+    Strategy:
+    1. If small enough, just trim excess pages.
+    2. If still too large, re-render pages as images into a new lightweight PDF.
+    """
+    if not pdf_bytes:
+        return pdf_bytes
+
+    try:
+        import fitz
+    except ImportError:
+        return pdf_bytes
+
+    try:
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    except Exception:
+        return pdf_bytes
+
+    n_pages = min(len(doc), max_pages)
+
+    # Fast path: trim pages and check size
+    if len(doc) > max_pages:
+        while len(doc) > max_pages:
+            doc.delete_page(-1)
+        out = doc.tobytes(deflate=True)
+        if len(out) <= max_bytes:
+            doc.close()
+            return out
+        doc.close()
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+
+    if len(pdf_bytes) <= max_bytes and n_pages == len(doc):
+        doc.close()
+        return pdf_bytes
+
+    # Slow path: re-render pages as JPEG images into a new compact PDF
+    new_doc = fitz.open()
+    for i in range(n_pages):
+        page = doc[i]
+        # Render at 1.5x — readable but not huge
+        pix = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5))
+        img_bytes = pix.tobytes("jpeg")
+        # Create new page with same dimensions
+        new_page = new_doc.new_page(width=page.rect.width, height=page.rect.height)
+        new_page.insert_image(new_page.rect, stream=img_bytes)
+
+    out = new_doc.tobytes(deflate=True)
+    new_doc.close()
+    doc.close()
+    return out
+
+
 def _pdf_to_base64(pdf_bytes: bytes) -> str | None:
-    """Encode PDF bytes as base64 for the Claude document API."""
+    """Truncate and encode PDF bytes as base64 for the Claude document API."""
     if not pdf_bytes:
         return None
+    pdf_bytes = _truncate_pdf(pdf_bytes)
     return base64.standard_b64encode(pdf_bytes).decode("ascii")
 
 
