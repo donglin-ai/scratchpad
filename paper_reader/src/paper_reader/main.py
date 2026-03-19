@@ -59,6 +59,23 @@ def analyze_single_paper(
     output_dir = config.paper_details_dir / "manual"
     pdf_path = write_paper_pdf(output_dir, discovery)
     print(f"Wrote paper analysis to {pdf_path}")
+
+    # Mark as seen so daily job won't re-analyze
+    from paper_reader.storage import SeenPaper, Storage
+    storage = Storage(config.database_path)
+    try:
+        storage.mark_paper_seen(
+            SeenPaper(
+                key=paper.key,
+                paper_url=paper.canonical_url,
+                source_id="manual",
+                source_name="manual",
+                seen_at=__import__("datetime").datetime.now(__import__("datetime").UTC).isoformat(),
+            )
+        )
+    finally:
+        storage.close()
+
     return 0
 
 
