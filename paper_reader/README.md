@@ -36,7 +36,8 @@ For richer paper analysis, the project now uses `pypdf` to extract text from pap
 2. Copy the example config and fill in your Claude API key if you want deep analysis:
 
 ```bash
-cp config.example.toml config.toml
+# Uncomment if config.example.toml is preferred
+# cp config.example.toml config.toml
 export ANTHROPIC_API_KEY="your-claude-api-key"
 ```
 
