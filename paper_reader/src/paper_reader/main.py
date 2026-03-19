@@ -15,7 +15,7 @@ from paper_reader.metadata import PaperMetadata, fetch_paper_metadata
 from paper_reader.papers import PaperLink, parse_paper_link
 from paper_reader.ranking import rank_paper, select_diverse_top_n
 from paper_reader.docx_report import write_paper_docx
-from paper_reader.reporting import Discovery, write_report, write_single_paper_analysis
+from paper_reader.reporting import Discovery, write_daily_summary_pdf
 from paper_reader.storage import SeenPaper, Storage
 
 
@@ -57,12 +57,14 @@ def analyze_single_paper(
     )
 
     output_dir = config.paper_details_dir / "manual"
-    if output_format == "docx":
-        output_path = write_paper_docx(output_dir, discovery)
-    else:
-        output_path = write_single_paper_analysis(output_dir, discovery)
+    docx_path = write_paper_docx(output_dir, discovery)
+    print(f"Wrote paper analysis to {docx_path}")
 
-    print(f"Wrote paper analysis to {output_path}")
+    # Also generate PDF version
+    from paper_reader.pdf_report import docx_to_pdf
+    pdf_path = docx_to_pdf(docx_path)
+    if pdf_path:
+        print(f"Wrote PDF to {pdf_path}")
     return 0
 
 
@@ -216,9 +218,13 @@ def run_once(config_path: str | Path, top_n: int = 3) -> int:
             )
             discoveries.append(discovery)
 
-            # Write individual DOCX
+            # Write individual DOCX + PDF
             docx_path = write_paper_docx(output_dir, discovery)
+            from paper_reader.pdf_report import docx_to_pdf
+            pdf_path = docx_to_pdf(docx_path)
             print(f"  → {docx_path}")
+            if pdf_path:
+                print(f"  → {pdf_path}")
 
             # Mark as seen
             storage.mark_paper_seen(
@@ -231,11 +237,10 @@ def run_once(config_path: str | Path, top_n: int = 3) -> int:
                 )
             )
 
-        # 6. Also write summary report
+        # 6. Also write daily summary PDF
         run_at = datetime.now(UTC)
-        report_path = write_report(
+        report_path = write_daily_summary_pdf(
             config.reports_dir,
-            config.paper_details_dir,
             run_at,
             discoveries,
             client.build_query(),
