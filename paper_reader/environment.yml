@@ -1,5 +1,3 @@
-# After creating the conda env, also install:
-#   brew install --cask libreoffice   # needed for DOCX → PDF conversion
 name: paper-reader
 channels:
   - conda-forge
@@ -9,8 +7,6 @@ dependencies:
   - pip:
       - "pypdf[image]>=5.0.0"
       - pymupdf>=1.24.0
-      - python-docx>=1.0.0
-      - latex2mathml>=3.0.0
-      - mathml2omml>=0.0.2
-      - lxml>=4.9.0
+      - fpdf2>=2.7.0
+      - matplotlib>=3.8.0
       - -e .
